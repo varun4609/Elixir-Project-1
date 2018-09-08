@@ -1,11 +1,13 @@
 defmodule Parent do
-  def spawn_link(xlimits, _) do
-    limits = Enum.to_list(1..xlimits)
-    spawn_link(__MODULE__, :init, [limits])
+  def spawn_link(xlimits) do
+    spawn_link(__MODULE__, :init, [xlimits])
   end
 
   def init(xlimits, size) do
-    limits = Enum.to_list(1..10)
+    num_proc = 50
+    threshold = min(xlimits, num_proc)
+
+    limits = Enum.to_list(1..threshold)
     Process.flag :trap_exit, true
 
     children_pids = Enum.map(limits, fn(limit_num) ->
@@ -13,16 +15,21 @@ defmodule Parent do
       {pid, limit_num}
     end) |> Enum.into(%{})
 
-    loop(children_pids, Enum.to_list(6..xlimits), size)
+    arg = Enum.to_list(threshold + 1..xlimits)
+    if xlimits > num_proc do
+      loop(children_pids, arg, size)
+    end
   end
 
-  def loop(_, [], _), do: :parentLoopExit
+  def loop(_, list, _) when list == [] do
+    :parentExit
+  end
   def loop(children_pids, [head | tail], size) do
     receive do
       {:EXIT, pid, _} = _->
         #IO.puts "Parent got message: #{inspect msg}"
 
-        {limit, children_pids} = pop_in children_pids[pid]
+        {_, children_pids} = pop_in children_pids[pid] #_ = limit
         new_pid = run_child(head, size)
 
         children_pids = put_in children_pids[new_pid], head
@@ -68,7 +75,7 @@ defmodule MathWork do
     #if ans is perfect square, exit. else continue
     temp = is_sqrt_natural?(ans)
     #if (temp == true) do
-    IO.puts("Temp: #{temp}, #{start_num}, value :#{ans}")
+      IO.puts("Temp: #{temp}, #{start_num}, value :#{ans}")
     #end
   end
 
@@ -93,6 +100,6 @@ defmodule MathWork do
   end
 end
 
-Parent.init(15, 24)
+Parent.init(40, 24)
 
 Process.sleep 10_00

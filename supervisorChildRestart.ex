@@ -1,9 +1,11 @@
 defmodule Parent do
-  def spawn_link(limits) do
+  def spawn_link(xlimits, size) do
+    limits = Enum.to_list(1..xlimits)
     spawn_link(__MODULE__, :init, [limits])
   end
 
-  def init(limits) do
+  def init(xlimits, size) do
+    limits = Enum.to_list(1..5)
     Process.flag :trap_exit, true
 
     children_pids = Enum.map(limits, fn(limit_num) ->
@@ -11,22 +13,23 @@ defmodule Parent do
       {pid, limit_num}
     end) |> Enum.into(%{})
 
-    loop(children_pids)
+    loop(children_pids, Enum.to_list(6..xlimits))
   end
 
-  def loop(children_pids) do
+  def loop(_, []), do: :parentLoopExit
+  def loop(children_pids, [head | tail]) do
     receive do
       {:EXIT, pid, _} = msg->
-        IO.puts "Parent got message: #{inspect msg}"
+        #IO.puts "Parent got message: #{inspect msg}"
 
         {limit, children_pids} = pop_in children_pids[pid]
-        new_pid = run_child(limit)
+        new_pid = run_child(head)
 
-        children_pids = put_in children_pids[new_pid], limit
+        children_pids = put_in children_pids[new_pid], head
 
         IO.puts "Restart children #{inspect pid}(limit #{limit}) with new pid #{inspect new_pid}"
 
-        loop(children_pids)
+        loop(children_pids, tail)
     end
   end
 
@@ -43,12 +46,12 @@ defmodule Child do
 
   def loop(0), do: :ok
   def loop(n) when n > 0 do
-    IO.puts "Process #{inspect self()} counter #{n}"
+    IO.puts "Process #{inspect self()} list #{n} to #{n + 25}"
     Process.sleep 500
-    loop(n-1)
+    #loop(n-1)
   end
 end
 
-Parent.init([2,3,5])
+Parent.init(100, 25)
 
 Process.sleep 10_000
